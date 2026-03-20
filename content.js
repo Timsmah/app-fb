@@ -265,13 +265,25 @@
 
   // ===================== PER-POST BUTTON (Group feed) =====================
 
+  // Returns true if this article is nested inside another article (= it's a comment)
+  function isCommentArticle(el) {
+    let p = el.parentElement;
+    while (p) {
+      if (p !== el && p.getAttribute('role') === 'article') return true;
+      p = p.parentElement;
+    }
+    return false;
+  }
+
   function injectPostButtons() {
-    // Facebook posts are div[role="article"]
     document.querySelectorAll('div[role="article"]').forEach(article => {
       if (article.hasAttribute(POST_MARKED)) return;
       article.setAttribute(POST_MARKED, '1');
 
-      // Skip banners / headers (no real text content)
+      // Skip comments — they are articles nested inside another article
+      if (isCommentArticle(article)) return;
+
+      // Skip banners / headers with no real content
       const text = article.innerText?.trim() || '';
       if (text.length < 40) return;
 
