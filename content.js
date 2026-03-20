@@ -288,6 +288,10 @@
       btn.addEventListener('click', async e => {
         e.stopPropagation();
         e.preventDefault();
+        if (!isExtensionAlive()) {
+          alert('Extension reloaded — please refresh this page (Cmd+R) to reactivate the buttons.');
+          return;
+        }
         btn.textContent = '⏳…';
         btn.disabled = true;
         try {
@@ -295,7 +299,7 @@
           showModal(data);
         } catch (err) {
           console.error('[FBExt]', err);
-          alert('Extraction failed.');
+          alert('Extraction failed: ' + (err.message || err));
         } finally {
           btn.textContent = '📋 Extract';
           btn.disabled = false;
@@ -357,12 +361,27 @@
 
   // ===================== PDF =====================
 
+  function isExtensionAlive() {
+    try { return !!chrome.runtime.id; } catch (e) { return false; }
+  }
+
   async function fetchImagesBase64(urls) {
+    // Extension context can be invalidated if the extension was reloaded without
+    // refreshing the Facebook tab. In that case, skip images and still produce PDF.
+    if (!isExtensionAlive()) {
+      console.warn('[FBExt] Extension context invalidated — PDF will be generated without photos. Refresh this tab to restore full functionality.');
+      return [];
+    }
     return new Promise(resolve => {
-      chrome.runtime.sendMessage({ type: 'fetchImages', urls }, response => {
-        if (chrome.runtime.lastError) { resolve([]); return; }
-        resolve(response?.images || []);
-      });
+      try {
+        chrome.runtime.sendMessage({ type: 'fetchImages', urls }, response => {
+          if (chrome.runtime.lastError) { resolve([]); return; }
+          resolve(response?.images || []);
+        });
+      } catch (e) {
+        console.warn('[FBExt] sendMessage failed:', e.message);
+        resolve([]);
+      }
     });
   }
 
