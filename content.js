@@ -327,13 +327,13 @@
       btn.classList.add('fbext-loading');
       btn.querySelector('span').textContent = '…';
       try {
-        // On group-post pages, scope to the main article to avoid grabbing
-        // photos and text from other posts visible on the page
+        // Try to scope to the main article to avoid stray photos/text,
+        // but only if it actually contains post content — otherwise fall back to body
         let scope = document.body;
         if (getPageType() === 'group-post') {
           const main = [...document.querySelectorAll('div[role="article"]')]
             .find(a => !isCommentArticle(a));
-          if (main) scope = main;
+          if (main && extractDescription(main).length > 30) scope = main;
         }
         const data = await extractAll(getPageType(), scope);
         showModal(data);
