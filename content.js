@@ -192,13 +192,32 @@
     let node;
     while ((node = walker.nextNode())) {
       const t = node.textContent.trim();
-      if (t.length > 5 && t.length < 100) {
+      // Location must be short and look like a place, not a group name or sentence
+      if (t.length > 5 && t.length < 55 && !t.includes('/') && !t.includes('for Rent') && !t.includes('for Sale')) {
         for (const kw of keywords) {
           if (t.includes(kw)) return t;
         }
       }
     }
     return '';
+  }
+
+  // Reformat wall-of-text into readable paragraphs
+  function reformatDescription(text) {
+    if (!text || text.length < 50) return text;
+    return text
+      // Remove markdown bold/italic markers
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*([^*\n]+?)\*/g, '$1')
+      // Newline before dash list items after a sentence
+      .replace(/([.!?])\s*(- )/g, '$1\n$2')
+      // Newline between sentences: "word. Capital" → "word.\nCapital"
+      .replace(/([.!?])\s+([A-Z])/g, '$1\n$2')
+      // Newline before common section labels
+      .replace(/\s+(Features|Facilities|Details|Contact|Rental|Location|Note|Price|Deposit|Contract|Floor|Size|Bedroom|Bathroom|Building|Unit|Project|Pool|Gym|Lobby|Parking|Included|Terms|Condition):/gi, '\n$1:')
+      // Clean up
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   function extractDescription(scope) {
@@ -260,11 +279,17 @@
 
   async function extractAll(pageType, scope) {
     const rawDesc   = extractDescription(scope);
-    // 1. Strip FB UI strings, 2. Remove phones, 3. Deduplicate bilingual content
-    const cleanDesc = deduplicateBilingual(removePhones(removeFacebookUI(rawDesc)));
-    const rawTitle  = pageType === 'group-feed' || (scope && scope !== document.body)
-                        ? rawDesc.split('\n')[0].substring(0, 120)
-                        : extractTitle(scope);
+    // Pipeline: strip UI noise → remove phones → dedup bilingual → reformat
+    const cleanDesc = reformatDescription(
+                        deduplicateBilingual(
+                          removePhones(
+                            removeFacebookUI(rawDesc))));
+
+    // For marketplace use h1; for all group contexts use first line of post text
+    // (Facebook's h1 on group pages shows navigation labels like "Accueil")
+    const rawTitle  = pageType === 'marketplace'
+                        ? extractTitle(scope)
+                        : (rawDesc.split('\n').find(l => l.trim().length > 5) || '').substring(0, 120);
 
     const [descResult, titleResult] = await Promise.all([
       detectAndTranslate(cleanDesc),
