@@ -417,8 +417,13 @@
     document.getElementById(OVERLAY_ID)?.remove();
 
     const photosHtml = data.images.length > 0
-      ? `<div class="fbext-photos">${data.images.slice(0, 20).map(u =>
-          `<img src="${u}" alt="photo" loading="lazy" onerror="this.remove()">`).join('')}</div>`
+      ? `<div class="fbext-photos">
+          ${data.images.slice(0, 20).map(u => `
+            <div class="fbext-photo-wrap">
+              <img src="${u}" alt="photo" loading="lazy" onerror="this.closest('.fbext-photo-wrap').remove()">
+              <button class="fbext-photo-del" title="Supprimer">✕</button>
+            </div>`).join('')}
+         </div>`
       : '<p class="fbext-no-photos">Aucune photo trouvée.</p>';
 
     const overlay = document.createElement('div');
@@ -430,11 +435,16 @@
           <button class="fbext-close">✕</button>
         </div>
         <div class="fbext-body">
+          <div class="fbext-edit-hint">✏️ Texte modifiable • ✕ pour supprimer une photo</div>
           ${data.wasTranslated ? '<div class="fbext-translated-badge">🌐 Translated from Thai</div>' : ''}
-          <h2 class="fbext-title">${esc(data.title)}</h2>
-          ${data.price    ? `<div class="fbext-price">${esc(data.price)}</div>` : ''}
-          ${data.location ? `<div class="fbext-location">📍 ${esc(data.location)}</div>` : ''}
-          <div class="fbext-desc">${esc(data.description)}</div>
+          <div class="fbext-field-label">Titre</div>
+          <div class="fbext-title fbext-editable" contenteditable="true">${esc(data.title)}</div>
+          ${data.price ? `<div class="fbext-field-label">Prix</div>
+          <div class="fbext-price fbext-editable" contenteditable="true">${esc(data.price)}</div>` : ''}
+          ${data.location ? `<div class="fbext-field-label">Localisation</div>
+          <div class="fbext-location fbext-editable" contenteditable="true">${esc(data.location)}</div>` : ''}
+          <div class="fbext-field-label">Description</div>
+          <div class="fbext-desc fbext-editable" contenteditable="true">${esc(data.description)}</div>
           <div class="fbext-section-title">Photos (${data.images.length})</div>
           ${photosHtml}
         </div>
@@ -447,10 +457,36 @@
     document.body.appendChild(overlay);
     overlay.querySelector('.fbext-close').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    // Photo deletion
+    overlay.querySelectorAll('.fbext-photo-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        btn.closest('.fbext-photo-wrap').remove();
+        // Update photo count
+        const count = overlay.querySelectorAll('.fbext-photo-wrap').length;
+        const sectionTitle = overlay.querySelector('.fbext-section-title');
+        if (sectionTitle) sectionTitle.textContent = `Photos (${count})`;
+      });
+    });
+
     overlay.querySelector('.fbext-pdf-btn').addEventListener('click', async function () {
       this.textContent = '⏳ Génération…';
       this.disabled = true;
-      try { await generatePDF(data); }
+      try {
+        // Read the current (possibly edited) content from the modal
+        const editedData = {
+          title:        overlay.querySelector('.fbext-title')?.innerText.trim()       || data.title,
+          price:        overlay.querySelector('.fbext-price')?.innerText.trim()       || '',
+          location:     overlay.querySelector('.fbext-location')?.innerText.trim()    || '',
+          description:  overlay.querySelector('.fbext-desc')?.innerText.trim()        || data.description,
+          wasTranslated: data.wasTranslated,
+          // Only images that haven't been deleted
+          images:       [...overlay.querySelectorAll('.fbext-photo-wrap img')].map(i => i.src),
+          pageType:     data.pageType,
+        };
+        await generatePDF(editedData);
+      }
       catch (e) { console.error('[FBExt] PDF:', e); alert('PDF error: ' + (e.message || e)); }
       finally { this.textContent = '📥 Télécharger PDF'; this.disabled = false; }
     });

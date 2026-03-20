@@ -163,11 +163,54 @@
   margin-bottom: 12px;
 }
 
+/* Edit hint */
+.fbext-edit-hint {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  background: #f0f4ff;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* Field labels */
+.fbext-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 10px 0 3px;
+}
+
+/* Editable fields */
+.fbext-editable {
+  outline: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  transition: background 0.15s, box-shadow 0.15s;
+  cursor: text;
+}
+
+.fbext-editable:hover {
+  background: #f5f5f5;
+}
+
+.fbext-editable:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px #1877f2;
+}
+
 /* Photo grid */
 .fbext-photos {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+
+.fbext-photo-wrap {
+  position: relative;
 }
 
 .fbext-photos img {
@@ -177,6 +220,36 @@
   border-radius: 6px;
   background: #eee;
   display: block;
+}
+
+/* Photo delete button */
+.fbext-photo-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 2;
+}
+
+.fbext-photo-wrap:hover .fbext-photo-del {
+  opacity: 1;
+}
+
+.fbext-photo-del:hover {
+  background: #e53935;
 }
 
 .fbext-no-photos {
