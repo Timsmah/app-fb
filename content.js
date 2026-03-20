@@ -350,7 +350,7 @@
       this.textContent = '⏳ Génération…';
       this.disabled = true;
       try { await generatePDF(data); }
-      catch (e) { console.error('[FBExt] PDF:', e); alert('PDF generation failed.'); }
+      catch (e) { console.error('[FBExt] PDF:', e); alert('PDF error: ' + (e.message || e)); }
       finally { this.textContent = '📥 Télécharger PDF'; this.disabled = false; }
     });
   }
@@ -367,6 +367,10 @@
   }
 
   async function generatePDF(data) {
+    // jsPDF is loaded as a content script — verify it's available
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error('jsPDF not loaded. Reload the extension in chrome://extensions and try again.');
+    }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
