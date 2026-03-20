@@ -506,16 +506,42 @@
     }
   }
 
-  // SPA navigation watcher
+  // ===================== SPA NAVIGATION WATCHER =====================
+  // Facebook uses the History API for navigation — MutationObserver alone misses it.
+  // We intercept pushState/replaceState + listen to popstate.
+
+  function onNavigate() {
+    document.getElementById(BTN_ID)?.remove();
+    document.getElementById(OVERLAY_ID)?.remove();
+    document.querySelectorAll(`.${POST_BTN_CLASS}`).forEach(b => b.remove());
+    // Try at 1s and 3s to handle slow React renders
+    setTimeout(init, 1000);
+    setTimeout(init, 3000);
+  }
+
+  const _pushState = history.pushState.bind(history);
+  history.pushState = function (...args) {
+    _pushState(...args);
+    onNavigate();
+  };
+
+  const _replaceState = history.replaceState.bind(history);
+  history.replaceState = function (...args) {
+    _replaceState(...args);
+    onNavigate();
+  };
+
+  window.addEventListener('popstate', onNavigate);
+
+  // Fallback: catch anything we missed
   let lastHref = location.href;
   new MutationObserver(() => {
     if (location.href === lastHref) return;
     lastHref = location.href;
-    document.getElementById(BTN_ID)?.remove();
-    document.getElementById(OVERLAY_ID)?.remove();
-    document.querySelectorAll(`.${POST_BTN_CLASS}`).forEach(b => b.remove());
-    setTimeout(init, 2500);
+    onNavigate();
   }).observe(document.documentElement, { subtree: true, childList: true });
 
-  init();
+  // Initial run — try at 1s and 3s
+  setTimeout(init, 1000);
+  setTimeout(init, 3000);
 })();
