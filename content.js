@@ -259,12 +259,16 @@
 
       // Skip profile pictures and group cover photos
       if (img.closest('[data-visualcompletion="ignore-dynamic"]')) continue;
-      // Skip images in page header / navigation areas
-      if (img.closest('header, nav, [role="banner"], [role="navigation"]')) continue;
-      // Skip group cover/banner images (usually very wide, short height = landscape banner)
+      // Skip images in page header / navigation / sidebar areas
+      if (img.closest('header, nav, [role="banner"], [role="navigation"], [role="complementary"]')) continue;
+      // Skip group cover/banner images (extreme landscape ratio)
       if (w > 0 && h > 0 && w / h > 4) continue;
-      // Skip images whose URL suggests they're profile/avatar (t1.0-1, t1.0-9 CDN paths)
+      // Skip profile/avatar CDN paths
       if (/\/t1\.0-(1|9)\//.test(src)) continue;
+      // Skip link-preview thumbnails (news articles, external URLs shared in posts)
+      if (img.closest('[role="link"]') && !img.closest('[role="article"]')) continue;
+      // Skip images inside video/reel/story containers
+      if (img.closest('[data-pagelet*="Video"], [data-pagelet*="Story"], [data-pagelet*="Reel"]')) continue;
 
       if (img.srcset) {
         const best = img.srcset.split(',')
@@ -311,6 +315,35 @@
     };
   }
 
+  // ===================== SCOPE DETECTION =====================
+
+  // Find the tightest DOM element that contains the listing content.
+  // This prevents grabbing images/text from other posts on the same page.
+  function getBestScope() {
+    const type = getPageType();
+
+    // Start from role="main" to exclude header, sidebar, nav
+    const main = document.querySelector('div[role="main"]');
+
+    if (type === 'marketplace') {
+      return main || document.body;
+    }
+
+    if (type === 'group-post' && main) {
+      // Find the first top-level article within main that has real post content
+      const articles = [...main.querySelectorAll('div[role="article"]')]
+        .filter(a => !isCommentArticle(a));
+
+      for (const article of articles) {
+        if (extractDescription(article).length > 30) return article;
+      }
+      // Fall back to role="main" — still much better than body
+      return main;
+    }
+
+    return main || document.body;
+  }
+
   // ===================== FLOATING BUTTON (Marketplace / specific post page) =====================
 
   function injectFloatingButton() {
@@ -327,15 +360,8 @@
       btn.classList.add('fbext-loading');
       btn.querySelector('span').textContent = '…';
       try {
-        // Try to scope to the main article to avoid stray photos/text,
-        // but only if it actually contains post content — otherwise fall back to body
-        let scope = document.body;
-        if (getPageType() === 'group-post') {
-          const main = [...document.querySelectorAll('div[role="article"]')]
-            .find(a => !isCommentArticle(a));
-          if (main && extractDescription(main).length > 30) scope = main;
-        }
-        const data = await extractAll(getPageType(), scope);
+        const data = await extractAll(getPageType(), getBestScope());
+
         showModal(data);
       } catch (e) {
         console.error('[FBExt]', e);
