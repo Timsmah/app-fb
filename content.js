@@ -35,19 +35,33 @@
       .trim();
   }
 
-  // For PDF: replace emojis with • so bullet lists stay clean
-  function replaceEmojisForPDF(str) {
+  // Clean text for PDF output.
+  // jsPDF's built-in helvetica only supports Latin-1 (0x00–0xFF).
+  // Anything outside that range renders as '?' or triggers Courier fallback.
+  function cleanForPDF(str) {
     if (!str) return '';
     return str
-      .replace(/[\u{1F300}-\u{1FAFF}]/gu, '•')   // supplementary emoji
-      .replace(/[\u{2600}-\u{27BF}]/gu, '•')       // misc symbols & dingbats
-      .replace(/[\u{FE00}-\u{FE0F}]/gu, '')        // variation selectors (invisible)
-      .replace(/\u200D/g, '')                       // zero-width joiner
-      .replace(/\uFE0F/g, '')                       // emoji presentation selector
-      // Collapse consecutive bullets: •• → •
-      .replace(/•(\s*•)+/g, '•')
-      // Clean up "• :" → ":"
-      .replace(/•\s*:/g, ':')
+      // Emojis → '-' (keeps bullet-list feel)
+      .replace(/[\u{1F300}-\u{1FAFF}]/gu, '- ')
+      .replace(/[\u{2600}-\u{27BF}]/gu, '- ')
+      .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+      .replace(/\u200D/g, '')
+      .replace(/\uFE0F/g, '')
+      // Thai baht symbol → 'THB' (฿ is U+0E3F, outside Latin-1)
+      .replace(/฿/g, 'THB ')
+      // Typographic chars → ASCII equivalents
+      .replace(/[—–]/g, '-')
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'")
+      .replace(/[…]/g, '...')
+      .replace(/[×]/g, 'x')
+      // Remove decorative separator lines: +++, ====, ----, ~~~~
+      .replace(/^[\s]*[+\-=*~#]{3,}[\s]*$/gm, '')
+      // Drop any remaining non-Latin-1 characters (Thai, CJK, etc.)
+      .replace(/[^\x00-\xFF]/g, '')
+      // Tidy up
+      .replace(/^- :/gm, ':')
+      .replace(/- (\s*- )+/g, '- ')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
@@ -411,8 +425,8 @@
     const cw     = pageW - margin * 2;
     let y        = margin;
 
-    // Replace emojis with • for clean PDF bullet points
-    const clean = str => replaceEmojisForPDF(str || '');
+    // Sanitize all text for Latin-1 PDF rendering
+    const clean = str => cleanForPDF(str || '');
 
     function checkBreak(h) {
       if (y + h > pageH - margin) { doc.addPage(); y = margin; }
