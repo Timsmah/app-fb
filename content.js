@@ -67,6 +67,31 @@
       .trim();
   }
 
+  // Remove Facebook UI navigation strings that bleed into extracted text
+  const FB_UI_STRINGS = new Set([
+    'groupes','groups','marketplace','accueil','home',
+    "j'aime","like","commenter","comment","partager","share",
+    'voir plus','see more','voir moins','see less',
+    'voir la traduction','see translation','hide translation',
+    'répondre','reply','signaler','report','enregistrer','save',
+    'voir les réponses','view replies','masquer les réponses','hide replies',
+    'membre','members','suivre','follow','rejoindre','join',
+    'notifications','paramètres','settings','rechercher','search',
+    'messenger','stories','reels','vidéo','video','photos',
+  ]);
+
+  function removeFacebookUI(text) {
+    if (!text) return text;
+    const lines = text.split('\n');
+    const filtered = lines.filter(line => {
+      const t = line.trim().toLowerCase();
+      if (!t) return true; // keep empty lines for spacing
+      // Drop lines that are ONLY a known UI string (with optional punctuation)
+      return !FB_UI_STRINGS.has(t.replace(/[:.!?]+$/, ''));
+    });
+    return filtered.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
   // Detect bilingual posts (Thai + English/French) and keep only one version.
   // Most Bangkok RE posts repeat the same content twice: once in Thai, once in English.
   function deduplicateBilingual(text) {
@@ -206,11 +231,21 @@
       const src = img.src || '';
       // Only Facebook CDN images
       if (!src.includes('fbcdn')) continue;
-      // Skip tiny images (avatars, icons, reaction icons)
+
+      // Skip tiny images (avatars, icons, reactions)
       const w = img.naturalWidth || img.width || img.offsetWidth;
+      const h = img.naturalHeight || img.height || img.offsetHeight;
       if (w > 0 && w < 150) continue;
-      // Skip profile pictures (usually circular, in specific containers)
+      if (h > 0 && h < 150) continue;
+
+      // Skip profile pictures and group cover photos
       if (img.closest('[data-visualcompletion="ignore-dynamic"]')) continue;
+      // Skip images in page header / navigation areas
+      if (img.closest('header, nav, [role="banner"], [role="navigation"]')) continue;
+      // Skip group cover/banner images (usually very wide, short height = landscape banner)
+      if (w > 0 && h > 0 && w / h > 4) continue;
+      // Skip images whose URL suggests they're profile/avatar (t1.0-1, t1.0-9 CDN paths)
+      if (/\/t1\.0-(1|9)\//.test(src)) continue;
 
       if (img.srcset) {
         const best = img.srcset.split(',')
@@ -225,8 +260,8 @@
 
   async function extractAll(pageType, scope) {
     const rawDesc   = extractDescription(scope);
-    // 1. Remove phone numbers, 2. Deduplicate bilingual content, 3. Clean
-    const cleanDesc = deduplicateBilingual(removePhones(rawDesc));
+    // 1. Strip FB UI strings, 2. Remove phones, 3. Deduplicate bilingual content
+    const cleanDesc = deduplicateBilingual(removePhones(removeFacebookUI(rawDesc)));
     const rawTitle  = pageType === 'group-feed' || (scope && scope !== document.body)
                         ? rawDesc.split('\n')[0].substring(0, 120)
                         : extractTitle(scope);
