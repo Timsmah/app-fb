@@ -1,0 +1,217 @@
+/* ===================== FLOATING BUTTON ===================== */
+
+#fbext-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1877f2;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(24,119,242,0.45);
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+  user-select: none;
+}
+
+#fbext-btn:hover {
+  background: #1464d8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(24,119,242,0.55);
+}
+
+#fbext-btn:active {
+  transform: translateY(0);
+}
+
+#fbext-btn.fbext-loading {
+  background: #666;
+  cursor: wait;
+}
+
+#fbext-btn svg {
+  flex-shrink: 0;
+}
+
+/* ===================== OVERLAY ===================== */
+
+#fbext-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+/* ===================== MODAL ===================== */
+
+.fbext-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+
+/* Header */
+.fbext-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #1877f2;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.fbext-header-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.fbext-close {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.fbext-close:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Body */
+.fbext-body {
+  overflow-y: auto;
+  padding: 20px;
+  flex: 1;
+}
+
+.fbext-translated-badge {
+  display: inline-block;
+  background: #e8f4ff;
+  color: #1877f2;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+
+.fbext-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+}
+
+.fbext-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00a152;
+  margin-bottom: 8px;
+}
+
+.fbext-location {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.fbext-desc {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  margin-bottom: 18px;
+  padding: 14px;
+  background: #f7f7f7;
+  border-radius: 8px;
+  border-left: 3px solid #1877f2;
+}
+
+.fbext-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+/* Photo grid */
+.fbext-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.fbext-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee;
+  display: block;
+}
+
+.fbext-no-photos {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Footer */
+.fbext-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.fbext-pdf-btn {
+  width: 100%;
+  background: #1877f2;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.fbext-pdf-btn:hover:not(:disabled) {
+  background: #1464d8;
+}
+
+.fbext-pdf-btn:disabled {
+  background: #aaa;
+  cursor: wait;
+}
