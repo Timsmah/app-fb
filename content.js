@@ -291,15 +291,18 @@
                         ? extractTitle(scope)
                         : (rawDesc.split('\n').find(l => l.trim().length > 5) || '').substring(0, 120);
 
-    const [descResult, titleResult] = await Promise.all([
+    const rawLocation = extractLocation(scope);
+
+    const [descResult, titleResult, locResult] = await Promise.all([
       detectAndTranslate(cleanDesc),
-      detectAndTranslate(rawTitle)
+      detectAndTranslate(rawTitle),
+      detectAndTranslate(rawLocation)
     ]);
 
     return {
       title:               titleResult.text,
       price:               extractPrice(scope),
-      location:            extractLocation(scope),
+      location:            locResult.text,
       description:         descResult.text,
       originalDescription: descResult.translated ? descResult.original : null,
       wasTranslated:       descResult.translated,
@@ -324,7 +327,15 @@
       btn.classList.add('fbext-loading');
       btn.querySelector('span').textContent = '…';
       try {
-        const data = await extractAll(getPageType(), document.body);
+        // On group-post pages, scope to the main article to avoid grabbing
+        // photos and text from other posts visible on the page
+        let scope = document.body;
+        if (getPageType() === 'group-post') {
+          const main = [...document.querySelectorAll('div[role="article"]')]
+            .find(a => !isCommentArticle(a));
+          if (main) scope = main;
+        }
+        const data = await extractAll(getPageType(), scope);
         showModal(data);
       } catch (e) {
         console.error('[FBExt]', e);
@@ -579,11 +590,15 @@
 
     // --- Location ---
     if (data.location) {
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      checkBreak(7);
-      doc.text('Location: ' + clean(data.location), margin, y);
-      y += 7;
+      const locClean = clean(data.location);
+      // Only show if meaningful content remains after stripping non-Latin chars
+      if (locClean.replace(/[,.\s\-/]+/g, '').length > 2) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        checkBreak(7);
+        doc.text('Location: ' + locClean, margin, y);
+        y += 7;
+      }
     }
 
     // --- Translation note ---
