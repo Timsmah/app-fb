@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "Static file server (Python)",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "--directory", "/Users/timmeniere/Desktop/Claude/App facebook", "3000"],
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /tmp && /usr/bin/python3 /tmp/fbext_server.py"],
       "port": 3000
     }
   ]

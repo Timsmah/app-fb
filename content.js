@@ -426,6 +426,58 @@
     try { return !!chrome.runtime.id; } catch (e) { return false; }
   }
 
+  // Get natural dimensions of a base64 image
+  async function getImageDimensions(dataUri) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = dataUri;
+    });
+  }
+
+  // Crop image to a circle using canvas — for profile photo
+  async function makeCircularDataUri(dataUri, size = 300) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        const s  = Math.min(img.width, img.height);
+        const sx = (img.width  - s) / 2;
+        const sy = (img.height - s) / 2;
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUri;
+    });
+  }
+
+  // Try to load profile photo from assets/profile.jpg
+  async function loadProfilePhoto() {
+    try {
+      const url  = chrome.runtime.getURL('assets/profile.jpg');
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      const dataUri = await new Promise(res => {
+        const r = new FileReader();
+        r.onloadend = () => res(r.result);
+        r.readAsDataURL(blob);
+      });
+      return await makeCircularDataUri(dataUri, 300);
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function fetchImagesBase64(urls) {
     // Extension context can be invalidated if the extension was reloaded without
     // refreshing the Facebook tab. In that case, skip images and still produce PDF.
@@ -447,7 +499,6 @@
   }
 
   async function generatePDF(data) {
-    // jsPDF is loaded as a content script — verify it's available
     if (!window.jspdf || !window.jspdf.jsPDF) {
       throw new Error('jsPDF not loaded. Reload the extension in chrome://extensions and try again.');
     }
@@ -460,16 +511,31 @@
     const cw     = pageW - margin * 2;
     let y        = margin;
 
-    // Sanitize all text for Latin-1 PDF rendering
     const clean = str => cleanForPDF(str || '');
 
     function checkBreak(h) {
       if (y + h > pageH - margin) { doc.addPage(); y = margin; }
     }
 
+    // --- Profile header ---
+    const profileImg = await loadProfilePhoto();
+    const profileD   = 18; // diameter mm
+    if (profileImg) {
+      checkBreak(profileD + 6);
+      doc.addImage(profileImg, 'PNG', margin, y, profileD, profileD);
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tim Thld', margin + profileD + 5, y + profileD / 2 + 1);
+      y += profileD + 5;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 5;
+    }
+
     // --- Title ---
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
     const titleLines = doc.splitTextToSize(clean(data.title) || 'Property Listing', cw);
     checkBreak(titleLines.length * 9 + 4);
     doc.text(titleLines, margin, y);
@@ -491,7 +557,7 @@
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       checkBreak(7);
-      doc.text(`Location: ${clean(data.location)}`, margin, y);
+      doc.text('Location: ' + clean(data.location), margin, y);
       y += 7;
     }
 
@@ -523,7 +589,7 @@
 
     y += 8;
 
-    // --- Photos ---
+    // --- Photos (smart layout) ---
     if (data.images.length > 0) {
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
@@ -532,17 +598,47 @@
       y += 9;
 
       const imgDataArray = await fetchImagesBase64(data.images);
-      const imgH = 100;
 
-      for (const imgData of imgDataArray) {
-        try {
-          checkBreak(imgH + 6);
-          const fmt = imgData.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(imgData, fmt, margin, y, cw, imgH, undefined, 'MEDIUM');
-          y += imgH + 6;
-        } catch (err) {
-          console.warn('[FBExt] Skipped image:', err);
+      // Get dimensions for each image to determine layout
+      const withDims = (await Promise.all(
+        imgDataArray.map(async d => {
+          const dims = await getImageDimensions(d);
+          if (!dims) return null;
+          return { data: d, ratio: dims.w / dims.h, fmt: d.startsWith('data:image/png') ? 'PNG' : 'JPEG' };
+        })
+      )).filter(Boolean);
+
+      // Portrait/square (ratio ≤ 1.3) → 2 per row, natural aspect ratio
+      const portraits  = withDims.filter(i => i.ratio <= 1.3);
+      // Landscape (ratio > 1.3) → full width, natural aspect ratio
+      const landscapes = withDims.filter(i => i.ratio >  1.3);
+
+      const gap  = 4;
+      const colW = (cw - gap) / 2;
+
+      // Portraits: 2 per row
+      for (let i = 0; i < portraits.length; i += 2) {
+        const left  = portraits[i];
+        const right = portraits[i + 1];
+        const hL    = Math.min(colW / left.ratio, 120);
+        const hR    = right ? Math.min(colW / right.ratio, 120) : 0;
+        const rowH  = right ? Math.max(hL, hR) : hL;
+        checkBreak(rowH + gap);
+        try { doc.addImage(left.data,  left.fmt,  margin,            y, colW, hL, undefined, 'MEDIUM'); } catch(e) {}
+        if (right) {
+          try { doc.addImage(right.data, right.fmt, margin + colW + gap, y, colW, hR, undefined, 'MEDIUM'); } catch(e) {}
         }
+        y += rowH + gap;
+      }
+
+      // Landscapes: full width, preserve aspect ratio
+      for (const img of landscapes) {
+        const imgH = Math.min(cw / img.ratio, 150);
+        checkBreak(imgH + gap);
+        try {
+          doc.addImage(img.data, img.fmt, margin, y, cw, imgH, undefined, 'MEDIUM');
+          y += imgH + gap;
+        } catch(e) {}
       }
     }
 

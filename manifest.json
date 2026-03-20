@@ -30,7 +30,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["libs/jspdf.umd.min.js"],
+      "resources": ["libs/jspdf.umd.min.js", "assets/*"],
       "matches": ["https://www.facebook.com/*"]
     }
   ]
